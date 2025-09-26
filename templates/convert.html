@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}Convert Files - Multi-format Converter{% endblock %}
+
+{% block head %}
+<style>
+    .drop-zone {
+        border: 3px dashed #007bff;
+        border-radius: 10px;
+        padding: 50px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: #f8f9fa;
+    }
+    
+    .drop-zone:hover,
+    .drop-zone.dragover {
+        border-color: #0056b3;
+        background-color: #e3f2fd;
+        transform: translateY(-2px);
+    }
+    
+    .file-info {
+        background: #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .conversion-options {
+        display: none;
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .progress {
+        display: none;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5">
+                <h1><i class="fas fa-magic me-2"></i>File Converter</h1>
+                <p class="text-muted">Upload your file and choose the conversion type</p>
+            </div>
+
+            <form id="conversionForm" method="POST" enctype="multipart/form-data" action="{{ url_for('convert') }}">
+                <!-- File Upload Section -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-upload me-2"></i>Step 1: Upload Your File
+                        </h5>
+                        
+                        <div class="drop-zone" id="dropZone">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                            <h4>Drag & Drop Your File Here</h4>
+                            <p class="text-muted">or click to browse</p>
+                            <input type="file" name="file" id="fileInput" class="d-none" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.mp3,.wav,.ogg,.flac,.m4a,.aac,.mp4,.avi,.mov">
+                        </div>
+                        
+                        <div id="fileInfo" class="file-info" style="display: none;">
+                            <h6><i class="fas fa-file me-2"></i>Selected File:</h6>
+                            <div id="fileName" class="fw-bold"></div>
+                            <div id="fileSize" class="text-muted small"></div>
+                            <div id="fileType" class="text-muted small"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversion Options Section -->
+                <div class="card shadow-sm mb-4 conversion-options" id="conversionOptions">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-cogs me-2"></i>Step 2: Choose Conversion Type
+                        </h5>
+                        
+                        <div id="conversionTypeContainer">
+                            <!-- Dynamic conversion options will be loaded here -->
+                        </div>
+                        
+                        <!-- Additional Options -->
+                        <div id="additionalOptions" style="display: none;">
+                            <hr>
+                            <h6>Additional Options:</h6>
+                            
+                            <!-- Image Resize Options -->
+                            <div id="resizeOptions" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                        <div class="col-md-6">
+                                        <label for="width" class="form-label">Width (px)</label>
+                                        <input type="number" class="form-control" name="width" value="800" min="1" max="5000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="height" class="form-label">Height (px)</label>
+                                        <input type="number" class="form-control" name="height" value="600" min="1" max="5000">
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="maintain_aspect" value="true" checked>
+                                            <label class="form-check-label">Maintain aspect ratio</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Image Format Options -->
+                            <div id="imageFormatOptions" style="display: none;">
+                                <label for="target_format" class="form-label">Target Format</label>
+                                <select name="target_format" class="form-select">
+                                    <option value="jpg">JPG</option>
+                                    <option value="png">PNG</option>
+                                    <option value="gif">GIF</option>
+                                    <option value="bmp">BMP</option>
+                                    <option value="tiff">TIFF</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Image Quality Options -->
+                            <div id="imageQualityOptions" style="display: none;">
+                                <label for="quality" class="form-label">Quality (1-100)</label>
+                                <input type="range" class="form-range" name="quality" min="1" max="100" value="85" id="qualityRange">
+                                <div class="d-flex justify-content-between">
+                                    <span>1</span>
+                                    <span id="qualityValue">85</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Image Filter Options -->
+                            <div id="imageFilterOptions" style="display: none;">
+                                <label for="filter_type" class="form-label">Filter Type</label>
+                                <select name="filter_type" class="form-select">
+                                    <option value="enhance">Enhance</option>
+                                    <option value="blur">Blur</option>
+                                    <option value="sharpen">Sharpen</option>
+                                    <option value="smooth">Smooth</option>
+                                    <option value="grayscale">Grayscale</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Image Rotation Options -->
+                            <div id="imageRotateOptions" style="display: none;">
+                                <label for="rotate_angle" class="form-label">Rotation Angle</label>
+                                <select name="rotate_angle" class="form-select">
+                                    <option value="90">90° Clockwise</option>
+                                    <option value="180">180°</option>
+                                    <option value="270">270° (90° Counter-clockwise)</option>
+                                    <option value="-90">90° Counter-clockwise</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Audio Format Options -->
+                            <div id="audioFormatOptions" style="display: none;">
+                                <label for="target_format" class="form-label">Target Format</label>
+                                <select name="target_format" class="form-select">
+                                    <option value="mp3">MP3</option>
+                                    <option value="wav">WAV</option>
+                                    <option value="ogg">OGG</option>
+                                    <option value="flac">FLAC</option>
+                                    <option value="aac">AAC</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Audio Bitrate Options -->
+                            <div id="audioBitrateOptions" style="display: none;">
+                                <label for="bitrate" class="form-label">Bitrate</label>
+                                <select name="bitrate" class="form-select">
+                                    <option value="32k">32 kbps</option>
+                                    <option value="64k" selected>64 kbps</option>
+                                    <option value="128k">128 kbps</option>
+                                    <option value="192k">192 kbps</option>
+                                    <option value="256k">256 kbps</option>
+                                    <option value="320k">320 kbps</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Audio Trim Options -->
+                            <div id="audioTrimOptions" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="start_time" class="form-label">Start Time (seconds)</label>
+                                        <input type="number" class="form-control" name="start_time" value="0" min="0" step="0.1">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="end_time" class="form-label">End Time (seconds, optional)</label>
+                                        <input type="number" class="form-control" name="end_time" min="0" step="0.1">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Audio Speed Options -->
+                            <div id="audioSpeedOptions" style="display: none;">
+                                <label for="speed_factor" class="form-label">Speed Factor</label>
+                                <select name="speed_factor" class="form-select">
+                                    <option value="0.5">0.5x (Half speed)</option>
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1.0" selected>1.0x (Normal)</option>
+                                    <option value="1.25">1.25x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2.0">2.0x (Double speed)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- TTS Engine Options -->
+                            <div id="ttsEngineOptions" style="display: none;">
+                                <label for="tts_engine" class="form-label">Text-to-Speech Engine</label>
+                                <select name="tts_engine" class="form-select">
+                                    <option value="gtts">Google TTS (Online)</option>
+                                    <option value="pyttsx3">System TTS (Offline)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center conversion-options" id="submitSection">
+                    <button type="submit" class="btn btn-primary btn-lg" id="convertBtn">
+                        <i class="fas fa-magic me-2"></i>Convert File
+                    </button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress" id="progressBar">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supported Formats Info -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle me-2"></i>Supported Formats
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-2">
+                            <h6>Documents</h6>
+                            <ul class="list-unstyled small">
+                                <li>PDF</li>
+                                <li>DOCX</li>
+                                <li>TXT</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Images</h6>
+                            <ul class="list-unstyled small">
+                                <li>JPG/JPEG</li>
+                                <li>PNG</li>
+                                <li>GIF, BMP, TIFF</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Audio</h6>
+                            <ul class="list-unstyled small">
+                                <li>MP3, WAV</li>
+                                <li>OGG, FLAC</li>
+                                <li>M4A, AAC</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-2">
+                            <h6>Video</h6>
+                            <ul class="list-unstyled small">
+                                <li>MP4</li>
+                                <li>AVI, MOV</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-2">
+                            <h6>File Size Limit</h6>
+                            <p class="small text-muted">Maximum: 200MB</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const conversionOptions = document.getElementById('conversionOptions');
+    const form = document.getElementById('conversionForm');
+    const progressBar = document.getElementById('progressBar');
+
+    // Conversion type mappings
+    const conversionTypes = {
+        'pdf': [
+            {value: 'pdf_to_docx', label: 'PDF to DOCX', icon: 'fa-file-word'},
+            {value: 'pdf_to_audio', label: 'PDF to Audio (Text-to-Speech)', icon: 'fa-volume-up'},
+            {value: 'pdf_to_txt', label: 'PDF to Text', icon: 'fa-file-alt'}
+        ],
+        'document': [
+            {value: 'text_to_audio', label: 'Text to Audio (Text-to-Speech)', icon: 'fa-volume-up'},
+            {value: 'txt_to_docx', label: 'TXT to DOCX', icon: 'fa-file-word'},
+            {value: 'docx_to_txt', label: 'DOCX to TXT', icon: 'fa-file-alt'}
+        ],
+        'image': [
+            {value: 'image_to_pdf', label: 'Image to PDF', icon: 'fa-file-pdf'},
+            {value: 'image_to_text', label: 'Image to Text (OCR)', icon: 'fa-file-alt'},
+            {value: 'image_resize', label: 'Resize Image', icon: 'fa-expand-arrows-alt'},
+            {value: 'image_format', label: 'Convert Format', icon: 'fa-exchange-alt'},
+            {value: 'image_compress', label: 'Compress Image', icon: 'fa-compress-alt'},
+            {value: 'image_filter', label: 'Apply Filter', icon: 'fa-filter'},
+            {value: 'image_rotate', label: 'Rotate Image', icon: 'fa-undo'}
+        ],
+        'audio': [
+            {value: 'audio_to_text', label: 'Audio to Text (Speech Recognition)', icon: 'fa-file-alt'},
+            {value: 'audio_format', label: 'Convert Audio Format', icon: 'fa-exchange-alt'},
+            {value: 'audio_compress', label: 'Compress Audio', icon: 'fa-compress-alt'},
+            {value: 'audio_normalize', label: 'Normalize Audio', icon: 'fa-sliders-h'},
+            {value: 'audio_trim', label: 'Trim Audio', icon: 'fa-cut'},
+            {value: 'audio_speed', label: 'Change Speed', icon: 'fa-tachometer-alt'}
+        ],
+        'video': [
+            {value: 'video_to_audio', label: 'Extract Audio from Video', icon: 'fa-music'}
+        ]
+    };
+
+    // File type detection
+    function getFileType(filename) {
+        const ext = filename.toLowerCase().split('.').pop();
+        if (ext === 'pdf') return 'pdf';
+        if (['docx', 'txt'].includes(ext)) return 'document';
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'].includes(ext)) return 'image';
+        if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) return 'audio';
+        if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext)) return 'video';
+        return 'unknown';
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle drag and drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        // Display file info
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileType').textContent = `Type: ${file.type || 'Unknown'}`;
+        fileInfo.style.display = 'block';
+
+        // Get file type and show conversion options
+        const fileType = getFileType(file.name);
+        if (fileType !== 'unknown') {
+            showConversionOptions(fileType);
+        } else {
+            alert('Unsupported file type. Please select a supported file format.');
+            resetForm();
+        }
+    }
+
+    function showConversionOptions(fileType) {
+        const container = document.getElementById('conversionTypeContainer');
+        const types = conversionTypes[fileType] || [];
+        
+        let html = '<div class="mb-3">';
+        types.forEach(type => {
+            html += `
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="conversion_type" 
+                           value="${type.value}" id="${type.value}" onchange="handleConversionTypeChange('${type.value}')">
+                    <label class="form-check-label" for="${type.value}">
+                        <i class="fas ${type.icon} me-2"></i>${type.label}
+                    </label>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+        conversionOptions.style.display = 'block';
+        document.getElementById('submitSection').style.display = 'block';
+    }
+
+    // Handle conversion type change for additional options
+    window.handleConversionTypeChange = function(conversionType) {
+        const additionalOptions = document.getElementById('additionalOptions');
+        const resizeOptions = document.getElementById('resizeOptions');
+        const audioFormatOptions = document.getElementById('audioFormatOptions');
+        const imageFormatOptions = document.getElementById('imageFormatOptions');
+        const imageQualityOptions = document.getElementById('imageQualityOptions');
+        const imageFilterOptions = document.getElementById('imageFilterOptions');
+        const imageRotateOptions = document.getElementById('imageRotateOptions');
+        const audioBitrateOptions = document.getElementById('audioBitrateOptions');
+        const audioTrimOptions = document.getElementById('audioTrimOptions');
+        const audioSpeedOptions = document.getElementById('audioSpeedOptions');
+        const ttsEngineOptions = document.getElementById('ttsEngineOptions');
+        
+        // Hide all additional options first
+        [resizeOptions, audioFormatOptions, imageFormatOptions, imageQualityOptions,
+         imageFilterOptions, imageRotateOptions, audioBitrateOptions, audioTrimOptions,
+         audioSpeedOptions, ttsEngineOptions].forEach(option => {
+            if (option) option.style.display = 'none';
+        });
+        additionalOptions.style.display = 'none';
+        
+        // Show relevant options based on conversion type
+        if (conversionType === 'image_resize') {
+            resizeOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'image_format') {
+            imageFormatOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'image_compress') {
+            imageQualityOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'image_filter') {
+            imageFilterOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'image_rotate') {
+            imageRotateOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'audio_format') {
+            audioFormatOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'audio_compress') {
+            audioBitrateOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'audio_trim') {
+            audioTrimOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'audio_speed') {
+            audioSpeedOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        } else if (conversionType === 'text_to_audio' || conversionType === 'pdf_to_audio') {
+            ttsEngineOptions.style.display = 'block';
+            additionalOptions.style.display = 'block';
+        }
+        
+        // Update quality slider display
+        const qualityRange = document.getElementById('qualityRange');
+        const qualityValue = document.getElementById('qualityValue');
+        if (qualityRange && qualityValue) {
+            qualityRange.oninput = function() {
+                qualityValue.textContent = this.value;
+            };
+        }
+    };
+
+    function resetForm() {
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        conversionOptions.style.display = 'none';
+        document.getElementById('submitSection').style.display = 'none';
+        document.getElementById('additionalOptions').style.display = 'none';
+    }
+
+    // Handle form submission with progress
+    form.addEventListener('submit', function(e) {
+        const convertBtn = document.getElementById('convertBtn');
+        const progressBarElement = progressBar.querySelector('.progress-bar');
+        
+        // Show progress bar
+        progressBar.style.display = 'block';
+        convertBtn.disabled = true;
+        convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Converting...';
+        
+        // Simulate progress (since we can't track real progress easily)
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBarElement.style.width = progress + '%';
+        }, 500);
+        
+        // Clean up on form submission
+        setTimeout(() => {
+            clearInterval(interval);
+        }, 1000);
+    });
+});
+</script>
+{% endblock %}
