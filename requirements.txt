@@ -32,3 +32,4 @@ ffmpeg-python==0.2.0
 opencv-python==4.10.0.84
 reportlab==4.2.2
 img2pdf==0.5.1
+gunicorn
